@@ -1,64 +1,62 @@
 import string
 import random
 import requests
-
-# الاسم الأساسي الذي سيتم التوليد بناءً عليه
-base_name = "YOUR_NAME" 
+import time
 
 def check_single_username(username, domain_template):
-    """
-    دالة للتحقق من اسم واحد عبر رابط محدد مفصل
-    """
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     
-    # دمج اسم المستخدم في المكان المخصص داخل الرابط {}
     full_url = domain_template.format(username)
     
     try:
         response = requests.get(full_url, headers=headers, timeout=5)
         
-        # الاعتماد على رمز استجابة HTTP لتحديد الحالة
+        # إذا كانت الاستجابة 404 فالحساب غالباً متاح
         if response.status_code == 404:
-            return username, "Available", "404"
-        elif response.status_code == 200:
-            return username, "Taken", "200"
+            return username, "متاح"
         else:
-            return username, "Status Unknown", str(response.status_code)
+            return username, "غير متاح"
             
     except requests.exceptions.RequestException:
-        return username, "Connection Error", "500"
+        return username, "خطأ في الاتصال"
 
-def generate_and_check(master_name):
-    print(f"--- جاري توليد وفحص الأسماء بناءً على: {master_name} ---\n")
+def generate_and_check():
+    # 1. طلب عدد اليوزرات من المستخدم عند التشغيل
+    try:
+        total_count = int(input("أدخل عدد اليوزرات الرباعية المراد فحصها: "))
+    except ValueError:
+        print("خطأ: يرجى كتابة رقم صحيح.")
+        return
+
+    print(f"\n--- جاري توليد وفحص {total_count} يوزر رباعي ---\n")
     
-    # 1. توليد قائمة بالأسماء
+    # الأحرف المسموح بها لتوليد يوزر رباعي
+    chars = string.ascii_lowercase + string.digits
+    
+    # 2. توليد قائمة يوزرات رباعية عشوائية
     pool = []
-    suffixes = ["y", "ie", "hq", "x", "io", "me"]
-    
-    for _ in range(5):
-        part = random.choice([master_name, master_name[0], master_name + random.choice(suffixes)])
-        if random.random() > 0.5:
-            final_name = part + str(random.randint(1, 99))
-        else:
-            final_name = part.lower()
-        pool.append(final_name)
+    for _ in range(total_count):
+        quad_name = ''.join(random.choice(chars) for _ in range(4))
+        pool.append(quad_name)
 
-    # 2. المواقع المراد الفحص بها مع تحديد مكان الاسم بـ {}
+    # 3. المواقع المراد الفحص بها (يمكنك إضافة أو تعديل الروابط)
     domain_templates = [
-        "https://www.github.com/{}",
-        "https://www.pinterest.com/{}/"
+        "https://www.github.com/{}"
     ]
 
-    # 3. الفحص
+    # 4. بدء الفحص
     for i, name in enumerate(pool):
-        print(f"[{i+1}] فحص الاسم: {name}")
+        print(f"[{i+1}] فحص اليوزر: {name}")
         for template in domain_templates:
-            site_name = template.split("/")[2] # استخراج اسم الموقع
-            username, status, code = check_single_username(name, template)
-            print(f"   ├─ [{site_name}]: {status} (HTTP: {code})")
-        print("-" * 40)
+            site_name = template.split("/")[2]
+            username, status = check_single_username(name, template)
+            print(f"   └─ النتيجة: {status}")
+        
+        # مهلة زمنية بسيطة لحماية الاتصال من التوقف
+        time.sleep(0.5)
+        print("-" * 30)
 
 if __name__ == "__main__":
-    generate_and_check(base_name)
+    generate_and_check()
