@@ -2,89 +2,108 @@ import string
 import random
 import requests
 import time
-import os
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Referer': 'https://www.tiktok.com/',
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+        "Version/17.0 Mobile/15E148 Safari/604.1"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/json",
+    "Accept-Language": "en-US,en;q=0.9",
 }
 
-def check_tiktok_username(username, session):
-    """يعيد: 'متاح' / 'غير متاح' / 'خطأ'"""
+def check_username(username, session):
+    url = f"https://www.tiktok.com/@{username}"
     try:
-        # endpoint بيانات المستخدم - استجابة JSON مباشرة
-        url = "https://www.tiktok.com/api/user/detail/"
-        params = {
-            "uniqueId": username,
-            "aid": "1988",
-        }
-        r = session.get(url, params=params, headers=HEADERS, timeout=8)
-        if r.status_code != 200:
-            return "خطأ"
-        data = r.json()
-        # إذا ما فيه userInfo يعني اليوزر غير موجود = متاح
-        if not data.get("userInfo"):
-            return "متاح"
-        return "غير متاح"
-    except (requests.exceptions.RequestException, ValueError):
-        return "خطأ"
+        response = session.get(url, headers=HEADERS, timeout=10, allow_redirects=True)
+
+        if response.status_code in (403, 429):
+            return "محظور", True        # النتيجة الثانية = يحتاج استراحة
+
+        if response.status_code == 404:
+            return "متاح", False
+
+        if response.status_code == 200:
+            page = response.text.lower()
+            # صفحة "الحساب غير موجود" => متاح
+            if "couldn't find this account" in page or "could not find this account" in page:
+                return "متاح", False
+            # صفحة بروفايل حقيقية تحتوي بيانات اليوزر => محجوز
+            if f'"uniqueid":"{username}"' in page or f"@{username}" in page.lower():
+                return "غير متاح", False
+            # 200 لكن بدون أي علامة تعريف => كابتشا/صفحة تحقق => لا نصنف
+            return "تعذر التحقق", True
+
+        return "تعذر التحقق", False
+
+    except requests.exceptions.RequestException:
+        return "تعذر التحقق", False
+
 
 def main():
-    print("=" * 50)
-    print("   فاحص يوزرات تيك توك الرباعية - نسخة محسّنة")
-    print("=" * 50)
+    print("=" * 40)
+    print("TikTok Username Checker")
+    print("=" * 40)
 
     try:
-        total = int(input("عدد اليوزرات المراد فحصها: ").strip())
+        total = int(input("عدد اليوزرات: ").strip())
         if total <= 0:
-            raise ValueError
+            print("أدخل رقمًا أكبر من صفر.")
+            return
+
+        delay_text = input("التأخير بالثواني (Enter = 2): ").strip()
+        delay = max(0.5, float(delay_text) if delay_text else 2.0)
     except ValueError:
-        print("يرجى إدخال رقم صحيح أكبر من صفر!")
+        print("أدخل أرقامًا صحيحة.")
         return
 
-    delay_input = input("التأخير بين كل فحص بالثواني (اتركه فارغ لـ 1): ").strip()
-    delay = float(delay_input) if delay_input else 1.0
-
-    # طلبات متتالية بنفس الجلسة لتسريع الاتصال (keep-alive)
-    session = requests.Session()
-
     chars = string.ascii_lowercase + string.digits + "_"
+    checked = set()
+    counts = {}
     available = []
-    errors = 0
+    filename = f"results_{int(time.time())}.txt"
 
-    out_file = f"available_{int(time.time())}.txt"
+    with requests.Session() as session:
+        try:
+            session.get("https://www.tiktok.com/", headers=HEADERS, timeout=10)
+        except requests.exceptions.RequestException:
+            pass
 
-    print(f"\nبدء الفحص... النتائج المتاحة تنحفظ في: {out_file}\n")
+        for i in range(1, total + 1):
+            username = "".join(random.choices(chars, k=4))
+            while username in checked:
+                username = "".join(random.choices(chars, k=4))
+            checked.add(username)
 
-    for i in range(1, total + 1):
-        user = ''.join(random.choice(chars) for _ in range(4))
-        status = check_tiktok_username(user, session)
+            status, need_break = check_username(username, session)
+            counts[status] = counts.get(status, 0) + 1
 
-        if status == "متاح":
-            print(f"[{i}] {user} : متاح  <---")
-            available.append(user)
-            with open(out_file, "a", encoding="utf-8") as f:
-                f.write(user + "\n")
-        elif status == "خطأ":
-            errors += 1
-            print(f"[{i}] {user} : خطأ في الاتصال")
-        else:
-            print(f"[{i}] {user} : غير متاح")
+            mark = "  <---" if status == "متاح" else ""
+            print(f"[{i}/{total}] @{username} : {status}{mark}")
 
-        time.sleep(delay)
+            if status == "متاح":
+                available.append(username)
 
-    print("\n" + "=" * 50)
-    print(f"النتيجة: {len(available)} متاح | {errors} خطأ")
+            with open(filename, "a", encoding="utf-8") as file:
+                file.write(f"{username} : {status}\n")
+
+            if need_break:
+                # استراحة واحدة بدل المزدوجة
+                time.sleep(delay * 3)
+                continue
+
+            time.sleep(delay)
+
+    print("=" * 40)
+    print("الإحصائيات:")
+    for k, v in counts.items():
+        print(f"  {k}: {v}")
     if available:
-        print("المتاح في هذه الجولة:")
+        print("المتاح:")
         for u in available:
-            print(f"  - {u}")
-    else:
-        print("ما تم إيجاد متاح (أغلب الرباعيات محجوزة).")
-    print("=" * 50)
+            print(f"  @{u}")
+    print(f"النتائج محفوظة في {filename}")
 
 if __name__ == "__main__":
     main()
