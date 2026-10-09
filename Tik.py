@@ -3,60 +3,71 @@ import random
 import requests
 import time
 
-def check_single_username(username, domain_template):
+def check_username(username):
+    # رابط فحص حسابات العامة
+    url = f"https://www.github.com/{username}"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     
-    full_url = domain_template.format(username)
-    
     try:
-        response = requests.get(full_url, headers=headers, timeout=5)
+        response = requests.get(url, headers=headers, timeout=5)
         
-        # إذا كانت الاستجابة 404 فالحساب غالباً متاح
+        # إذا كان رمز الاستجابة 404 فهذا يعني أن الاسم متاح
         if response.status_code == 404:
-            return username, "متاح"
+            return "متاح"
         else:
-            return username, "غير متاح"
+            return "غير متاح"
             
     except requests.exceptions.RequestException:
-        return username, "خطأ في الاتصال"
+        return "خطأ في الاتصال"
 
-def generate_and_check():
-    # 1. طلب عدد اليوزرات من المستخدم عند التشغيل
+def main():
+    print("=" * 40)
+    print("      برنامج فحص اليوزرات الرباعية")
+    print("=" * 40)
+    
+    # تحديد عدد محاولات الفحص
     try:
-        total_count = int(input("أدخل عدد اليوزرات الرباعية المراد فحصها: "))
+        total_checks = int(input("أدخل عدد اليوزرات المراد فحصها: "))
     except ValueError:
-        print("خطأ: يرجى كتابة رقم صحيح.")
+        print("يرجى كتابة رقم صحيح!")
         return
 
-    print(f"\n--- جاري توليد وفحص {total_count} يوزر رباعي ---\n")
+    print(f"\nجاري بدء فحص {total_checks} يوزر رباعي...\n")
     
-    # الأحرف المسموح بها لتوليد يوزر رباعي
-    chars = string.ascii_lowercase + string.digits
+    # عناصر اليوزر الرباعي (حروف إنجليزية صغيرة + أرقام + شرطة سفلية)
+    chars = string.ascii_lowercase + string.digits + "_"
     
-    # 2. توليد قائمة يوزرات رباعية عشوائية
-    pool = []
-    for _ in range(total_count):
-        quad_name = ''.join(random.choice(chars) for _ in range(4))
-        pool.append(quad_name)
+    # القائمة لحفظ المتاح فقط
+    available_list = []
 
-    # 3. المواقع المراد الفحص بها (يمكنك إضافة أو تعديل الروابط)
-    domain_templates = [
-        "https://www.github.com/{}"
-    ]
-
-    # 4. بدء الفحص
-    for i, name in enumerate(pool):
-        print(f"[{i+1}] فحص اليوزر: {name}")
-        for template in domain_templates:
-            site_name = template.split("/")[2]
-            username, status = check_single_username(name, template)
-            print(f"   └─ النتيجة: {status}")
+    for i in range(1, total_checks + 1):
+        # توليد يوزر رباعي فقط (4 أحرف)
+        quad_user = ''.join(random.choice(chars) for _ in range(4))
         
-        # مهلة زمنية بسيطة لحماية الاتصال من التوقف
-        time.sleep(0.5)
-        print("-" * 30)
+        # فحص الحالة
+        status = check_username(quad_user)
+        
+        # طباعة النتيجة بتنسيق واضح
+        if status == "متاح":
+            print(f"[{i}] {quad_user} : متاح  <---")
+            available_list.append(quad_user)
+        else:
+            print(f"[{i}] {quad_user} : غير متاح")
+            
+        # مهلة بسيطة بين كل فحص لضمان ثبات الاتصال
+        time.sleep(0.3)
+
+    # ملخص النتائج في النهاية
+    print("\n" + "=" * 40)
+    print("النتائج النهائية للليوزرات المتاحة:")
+    if available_list:
+        for user in available_list:
+            print(f"- {user}")
+    else:
+        print("لم يتم العثور على يوزرات متاحة في هذه الجولة.")
+    print("=" * 40)
 
 if __name__ == "__main__":
-    generate_and_check()
+    main()
