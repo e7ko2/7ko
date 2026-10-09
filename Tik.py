@@ -3,17 +3,19 @@ import random
 import requests
 import time
 
-def check_username(username):
-    # رابط فحص حسابات العامة
-    url = f"https://www.github.com/{username}"
+def check_tiktok_username(username):
+    # رابط الملف الشخصي المباشر على تيك توك
+    url = f"https://www.tiktok.com/@{username}"
+    
+    # متصفح وهمي لتفادي حظر الطلبات البسيطة
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
     }
     
     try:
         response = requests.get(url, headers=headers, timeout=5)
         
-        # إذا كان رمز الاستجابة 404 فهذا يعني أن الاسم متاح
+        # رمز 404 يعني أن الصفحة غير موجودة (اليوزر قد يكون متاحاً)
         if response.status_code == 404:
             return "متاح"
         else:
@@ -23,51 +25,46 @@ def check_username(username):
         return "خطأ في الاتصال"
 
 def main():
-    print("=" * 40)
-    print("      برنامج فحص اليوزرات الرباعية")
-    print("=" * 40)
+    print("=" * 45)
+    print("   فحص متاحية يوزرات تيك توك الرباعية")
+    print("=" * 45)
     
-    # تحديد عدد محاولات الفحص
     try:
         total_checks = int(input("أدخل عدد اليوزرات المراد فحصها: "))
     except ValueError:
         print("يرجى كتابة رقم صحيح!")
         return
 
-    print(f"\nجاري بدء فحص {total_checks} يوزر رباعي...\n")
+    print(f"\nجاري بدء فحص {total_checks} يوزر على تيك توك...\n")
     
-    # عناصر اليوزر الرباعي (حروف إنجليزية صغيرة + أرقام + شرطة سفلية)
+    # الحروف والأرقام والشرطة السفلية المقبولة في يوزرات تيك توك
     chars = string.ascii_lowercase + string.digits + "_"
     
-    # القائمة لحفظ المتاح فقط
     available_list = []
 
     for i in range(1, total_checks + 1):
-        # توليد يوزر رباعي فقط (4 أحرف)
+        # توليد يوزر رباعي
         quad_user = ''.join(random.choice(chars) for _ in range(4))
         
-        # فحص الحالة
-        status = check_username(quad_user)
+        status = check_tiktok_username(quad_user)
         
-        # طباعة النتيجة بتنسيق واضح
         if status == "متاح":
             print(f"[{i}] {quad_user} : متاح  <---")
             available_list.append(quad_user)
         else:
             print(f"[{i}] {quad_user} : غير متاح")
             
-        # مهلة بسيطة بين كل فحص لضمان ثبات الاتصال
-        time.sleep(0.3)
+        # مهلة ثانية واحدة بين كل فحص لتجنب الحظر السريع للـ IP
+        time.sleep(1)
 
-    # ملخص النتائج في النهاية
-    print("\n" + "=" * 40)
-    print("النتائج النهائية للليوزرات المتاحة:")
+    print("\n" + "=" * 45)
+    print("الأسماء المتاحة في هذه الجولة:")
     if available_list:
         for user in available_list:
             print(f"- {user}")
     else:
-        print("لم يتم العثور على يوزرات متاحة في هذه الجولة.")
-    print("=" * 40)
+        print("لم يتم العثور على يوزرات متاحة (أغلب الرباعيات محجوزة).")
+    print("=" * 45)
 
 if __name__ == "__main__":
     main()
